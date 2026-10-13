@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">pointage-app</string>
+    <string name="title_activity_main">pointage-app</string>
+    <string name="package_name">mg.fortico.pointage</string>
+    <string name="custom_url_scheme">mg.fortico.pointage</string>
+</resources>
