@@ -9,7 +9,8 @@ export default defineConfig({
     proxy: {
       // API REST + WebSocket temps réel (/api/v1/ws) du backend local
       '/api': {
-        target: 'http://localhost:8000',
+        // target: 'http://localhost:8000',
+        target: 'https://backend-g8cb.onrender.com/',
         changeOrigin: true,
         secure: false,
         ws: true,
