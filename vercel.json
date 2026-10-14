@@ -3,6 +3,10 @@
   "buildCommand": "npm run build:demo",
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://backend-g8cb.onrender.com/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
