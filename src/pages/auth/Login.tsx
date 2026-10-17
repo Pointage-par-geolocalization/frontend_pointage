@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { ApiError, MOCK_MODE } from "../../services/api"
 import DemoAccounts from "../../components/DemoAccounts"
 import { useAuth } from "../../hooks/useAuth"
-import technicienImg from "../../assets/technicien-nuage.webp"
+import technicienImg from "../../assets/technicien-tablette.webp"
 import {
   Eye,
   EyeOff,
@@ -20,7 +20,6 @@ import {
   CheckCircle2,
   ShieldCheck,
   ArrowRight,
-  Activity,
   type LucideIcon,
 } from "lucide-react"
 
@@ -39,8 +38,6 @@ const css = `
 @keyframes auth-shake   { 0%,100% { transform: translateX(0) } 20%,60% { transform: translateX(-5px) } 40%,80% { transform: translateX(5px) } }
 
 .auth-float     { animation: auth-float 7s ease-in-out infinite; }
-.auth-float-b   { animation: auth-float 6s ease-in-out -2s infinite; }
-.auth-float-c   { animation: auth-float 8s ease-in-out -4s infinite; }
 .auth-spin-slow { animation: auth-spin 90s linear infinite; }
 .auth-spin-rev  { animation: auth-spin 140s linear infinite reverse; }
 .auth-in        { animation: auth-in .45s cubic-bezier(.2,.8,.2,1) both; }
@@ -131,7 +128,7 @@ const css = `
 @media (max-height: 620px) { .auth-hide-xshort { display: none !important; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-float, .auth-float-b, .auth-float-c, .auth-spin-slow, .auth-spin-rev, .auth-card-border, .auth-in, .auth-card-in { animation: none !important; }
+  .auth-float, .auth-spin-slow, .auth-spin-rev, .auth-card-border, .auth-in, .auth-card-in { animation: none !important; }
 }
 `
 
@@ -184,18 +181,6 @@ function Field({ id, label, value, onChange, icon: Icon, type = "text", secret =
       )}
     </div>
   )
-}
-
-/* ------------------------------------------------------------------ */
-/*  Heure en direct (composant isolé pour ne pas re-rendre le formulaire) */
-/* ------------------------------------------------------------------ */
-function LiveClock() {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(t)
-  }, [])
-  return <>{now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</>
 }
 
 /* ------------------------------------------------------------------ */
@@ -315,58 +300,18 @@ export default function Login() {
         {/* ---- Photo en arrière-plan du texte ---- */}
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           {/* halo lumineux derrière la photo */}
-          <div className="auth-halo absolute -bottom-[10%] -right-[18%] aspect-square w-[95%] rounded-full" />
+          <div className="auth-halo absolute -bottom-[6%] -right-[10%] aspect-square w-[82%] rounded-full" />
           {/* anneaux orbitaux */}
-          <div className="auth-spin-slow absolute -bottom-[8%] -right-[6%] aspect-square w-[80%] rounded-full border border-dashed border-white/20" />
-          <div className="auth-spin-rev absolute -bottom-[22%] -right-[24%] aspect-square w-[105%] rounded-full border border-white/10" />
-
-          {/* photo agrandie, elle déborde volontairement du cadre */}
+          <div className="auth-spin-slow absolute -bottom-[2%] right-[0%] aspect-square w-[70%] rounded-full border border-dashed border-white/20" />
+          <div className="auth-spin-rev absolute -bottom-[14%] -right-[12%] aspect-square w-[92%] rounded-full border border-white/10" />
+          {/* photo */}
           <img
             src={technicienImg}
             alt=""
             draggable={false}
-            className="auth-float absolute -right-[7%] bottom-[1%] h-auto max-w-none select-none"
-            style={{ width: "min(88%, calc(100dvh * 1.12))", filter: "drop-shadow(0 30px 45px rgba(2,6,23,.55))" }}
+            className="auth-float absolute bottom-[5%] right-[1%] h-[74%] w-auto max-w-[98%] select-none object-contain object-right-bottom"
+            style={{ filter: "drop-shadow(0 30px 45px rgba(2,6,23,.5))" }}
           />
-
-        </div>
-
-        {/* Widgets « produit » flottants (au-dessus du voile pour rester bien nets) */}
-        <div className="pointer-events-none absolute inset-0 z-[5]" aria-hidden>
-          <div className="auth-float-b absolute right-[7%] top-[31%] flex items-center gap-3 rounded-2xl bg-white/95 py-2.5 pl-2.5 pr-4 shadow-2xl shadow-primary-900/40 ring-1 ring-white/60">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600">
-              <CheckCircle2 className="h-5 w-5" />
-            </span>
-            <div className="leading-tight">
-              <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                Arrivée enregistrée
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                </span>
-              </p>
-              <p className="text-lg font-bold tabular-nums tracking-tight text-slate-900"><LiveClock /></p>
-            </div>
-          </div>
-
-          <div className="auth-float-c absolute bottom-[6%] right-[2%] w-[11.5rem] rounded-2xl bg-white/95 p-3 shadow-2xl shadow-primary-900/40 ring-1 ring-white/60">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] font-medium text-slate-500">Heures cette semaine</p>
-              <Activity className="h-3.5 w-3.5 text-primary-600" />
-            </div>
-            <div className="flex items-end justify-between">
-              <p className="text-lg font-bold leading-none tracking-tight text-slate-900">38 h 20</p>
-              <div className="flex h-9 items-end gap-1">
-                {[40, 65, 50, 85, 70, 100].map((h, i) => (
-                  <span
-                    key={i}
-                    className={`w-2 rounded-sm ${i === 5 ? "bg-gradient-to-t from-primary-600 to-indigo-500" : "bg-primary-200"}`}
-                    style={{ height: `${h}%` }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Voile de lisibilité : assombrit la zone du texte, laisse la photo respirer */}
