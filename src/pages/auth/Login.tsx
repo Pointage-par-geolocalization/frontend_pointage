@@ -174,7 +174,7 @@ export default function Login() {
         <div className="my-auto max-w-md w-full mx-auto py-8">
           <div className="mb-8">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-2">
-              {mode === "login" ? "Bon retour 👋" : "Créer un compte admin"}
+              {mode === "login" ? "Bon retour" : "Créer un compte admin"}
             </h2>
             <p className="text-sm text-slate-500">
               {mode === "login"
