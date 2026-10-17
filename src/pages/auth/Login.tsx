@@ -151,7 +151,7 @@ export default function Login() {
           <span className="flex items-center gap-1.5 font-medium">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Sécurisé & Conforme
           </span>
-          <span>Version Pro 2.0</span>
+          <span></span>
         </div>
 
       </div>
