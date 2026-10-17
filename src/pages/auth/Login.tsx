@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ApiError, MOCK_MODE } from "../../services/api"
 import DemoAccounts from "../../components/DemoAccounts"
-import { useAuth } from "../../hooks/useAuth"
+import { useAuth } from "../../hooks/useAuth" 
 import {
   ArrowRight, BadgeCheck, CalendarCheck2, Check, Clock3, Eye, EyeOff,
   Fingerprint, KeyRound, Loader2, LockKeyhole, Mail, ShieldCheck, Sparkles,
