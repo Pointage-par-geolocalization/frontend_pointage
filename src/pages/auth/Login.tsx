@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { ApiError, MOCK_MODE } from "../../services/api"
 import DemoAccounts from "../../components/DemoAccounts"
 import { useAuth } from "../../hooks/useAuth"
-import technicienImg from "../../assets/technicien-tablette.webp"
+import technicienImg from "../../assets/technicien-hologramme.webp"
 import {
   Eye,
   EyeOff,
@@ -38,6 +38,8 @@ const css = `
 @keyframes auth-shake   { 0%,100% { transform: translateX(0) } 20%,60% { transform: translateX(-5px) } 40%,80% { transform: translateX(5px) } }
 
 .auth-float     { animation: auth-float 7s ease-in-out infinite; }
+.auth-float-b   { animation: auth-float 6s ease-in-out -2s infinite; }
+.auth-float-c   { animation: auth-float 8s ease-in-out -4s infinite; }
 .auth-spin-slow { animation: auth-spin 90s linear infinite; }
 .auth-spin-rev  { animation: auth-spin 140s linear infinite reverse; }
 .auth-in        { animation: auth-in .45s cubic-bezier(.2,.8,.2,1) both; }
@@ -128,7 +130,7 @@ const css = `
 @media (max-height: 620px) { .auth-hide-xshort { display: none !important; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-float, .auth-spin-slow, .auth-spin-rev, .auth-card-border, .auth-in, .auth-card-in { animation: none !important; }
+  .auth-float, .auth-float-b, .auth-float-c, .auth-spin-slow, .auth-spin-rev, .auth-card-border, .auth-in, .auth-card-in { animation: none !important; }
 }
 `
 
@@ -181,6 +183,18 @@ function Field({ id, label, value, onChange, icon: Icon, type = "text", secret =
       )}
     </div>
   )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Heure en direct (composant isolé pour ne pas re-rendre le formulaire) */
+/* ------------------------------------------------------------------ */
+function LiveClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  return <>{now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</>
 }
 
 /* ------------------------------------------------------------------ */
@@ -299,24 +313,42 @@ export default function Login() {
 
         {/* ---- Photo en arrière-plan du texte ---- */}
         <div className="pointer-events-none absolute inset-0" aria-hidden>
-          {/* halo lumineux derrière la photo */}
-          <div className="auth-halo absolute -bottom-[6%] -right-[10%] aspect-square w-[82%] rounded-full" />
-          {/* anneaux orbitaux */}
-          <div className="auth-spin-slow absolute -bottom-[2%] right-[0%] aspect-square w-[70%] rounded-full border border-dashed border-white/20" />
-          <div className="auth-spin-rev absolute -bottom-[14%] -right-[12%] aspect-square w-[92%] rounded-full border border-white/10" />
-          {/* photo */}
           <img
             src={technicienImg}
             alt=""
             draggable={false}
-            className="auth-float absolute bottom-[5%] right-[1%] h-[74%] w-auto max-w-[98%] select-none object-contain object-right-bottom"
-            style={{ filter: "drop-shadow(0 30px 45px rgba(2,6,23,.5))" }}
+            className="absolute bottom-0 left-0 h-[74%] w-auto max-w-none select-none object-cover object-left"
+            style={{
+              WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, #000 30%, #000 100%)",
+              maskImage: "linear-gradient(to bottom, transparent 0%, #000 30%, #000 100%)",
+            }}
           />
+          {/* Teinte de marque pour fondre la photo dans le bleu */}
+          <div className="absolute inset-0 bg-gradient-to-t from-primary-900/70 via-primary-800/15 to-primary-900/40 mix-blend-multiply" />
+          <div className="absolute inset-y-0 right-0 w-1/4 bg-gradient-to-l from-indigo-900/60 to-transparent" />
         </div>
 
-        {/* Voile de lisibilité : assombrit la zone du texte, laisse la photo respirer */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-primary-900/85 via-primary-900/30 to-transparent" aria-hidden />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-primary-900/70 to-transparent" aria-hidden />
+        {/* Voile de lisibilité pour le texte du haut */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[46%] bg-gradient-to-b from-primary-900 via-primary-900/75 to-transparent" aria-hidden />
+
+        {/* Widget « pointage en direct » */}
+        <div className="pointer-events-none absolute inset-0 z-[5]" aria-hidden>
+          <div className="auth-float-b absolute right-[5%] top-[30%] flex items-center gap-3 rounded-2xl bg-white/95 py-2.5 pl-2.5 pr-4 shadow-2xl shadow-primary-900/40 ring-1 ring-white/60">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600">
+              <CheckCircle2 className="h-5 w-5" />
+            </span>
+            <div className="leading-tight">
+              <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                Arrivée enregistrée
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                </span>
+              </p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-slate-900"><LiveClock /></p>
+            </div>
+          </div>
+        </div>
 
         {/* ---- Contenu texte ---- */}
         <div className="relative z-10 flex h-full w-full flex-col justify-between px-12 py-[clamp(1.25rem,5vh,3.5rem)] xl:px-16">
@@ -333,19 +365,19 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Cartes (version compacte pour tenir sur un seul écran) */}
-          <div className="max-w-[20.5rem] space-y-[clamp(.4rem,1.4vh,.75rem)]">
+          {/* Cartes en rangée, en bas, pour laisser la photo respirer */}
+          <div className="grid grid-cols-3 gap-[clamp(.5rem,1.4vh,.75rem)]">
             {features.map(({ icon: Icon, title, text, tone }) => (
               <div
                 key={title}
-                className="flex items-center gap-3.5 rounded-2xl border border-white/15 bg-white/10 p-[clamp(.55rem,1.6vh,.9rem)] shadow-xl backdrop-blur-xl transition duration-300 hover:scale-[1.02] hover:bg-white/15"
+                className="flex items-start gap-2.5 rounded-2xl border border-white/15 bg-primary-900/50 p-[clamp(.55rem,1.5vh,.8rem)] shadow-xl backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-primary-800/60"
               >
-                <div className={`shrink-0 rounded-xl border p-2.5 ${tone}`}>
-                  <Icon className="h-5 w-5" />
+                <div className={`shrink-0 rounded-lg border p-2 ${tone}`}>
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-white">{title}</h3>
-                  <p className="auth-hide-xshort text-xs leading-snug text-primary-100/75">{text}</p>
+                  <h3 className="text-[13px] font-semibold leading-tight text-white">{title}</h3>
+                  <p className="auth-hide-xshort mt-0.5 text-[11px] leading-snug text-primary-100/75">{text}</p>
                 </div>
               </div>
             ))}
