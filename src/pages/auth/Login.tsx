@@ -1,104 +1,508 @@
 // src/pages/auth/Login.tsx
-import { useEffect, useState } from "react"
+import { useState, useEffect, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { ApiError, MOCK_MODE } from "../../services/api"
 import DemoAccounts from "../../components/DemoAccounts"
-import { useAuth } from "../../hooks/useAuth" 
+import { useAuth } from "../../hooks/useAuth"
+import technicienImg from "../../assets/technicien-tablette.webp"
 import {
-  ArrowRight, BadgeCheck, CalendarCheck2, Check, Clock3, Eye, EyeOff,
-  Fingerprint, KeyRound, Loader2, LockKeyhole, Mail, ShieldCheck, Sparkles,
-  TrendingUp, UserRound,
+  Eye,
+  EyeOff,
+  Lock,
+  User,
+  Mail,
+  KeyRound,
+  Loader2,
+  Clock,
+  CalendarCheck,
+  TrendingUp,
+  Sparkles,
+  CheckCircle2,
+  ShieldCheck,
+  ArrowRight,
+  type LucideIcon,
 } from "lucide-react"
+
+/* ------------------------------------------------------------------ */
+/*  Styles propres à la page (animations + champs à label flottant)    */
+/* ------------------------------------------------------------------ */
+const css = `
+.auth-root { --fh: clamp(46px, 7.2vh, 56px); }
+
+/* ---------- Animations ---------- */
+@keyframes auth-float   { 0%,100% { transform: translateY(0) }   50% { transform: translateY(-12px) } }
+@keyframes auth-spin    { to { transform: rotate(360deg) } }
+@keyframes auth-border  { 0% { background-position: 0% 50% } 100% { background-position: 300% 50% } }
+@keyframes auth-in      { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+@keyframes auth-card-in { from { opacity: 0; transform: translateY(18px) scale(.985) } to { opacity: 1; transform: none } }
+@keyframes auth-shake   { 0%,100% { transform: translateX(0) } 20%,60% { transform: translateX(-5px) } 40%,80% { transform: translateX(5px) } }
+
+.auth-float     { animation: auth-float 7s ease-in-out infinite; }
+.auth-spin-slow { animation: auth-spin 90s linear infinite; }
+.auth-spin-rev  { animation: auth-spin 140s linear infinite reverse; }
+.auth-in        { animation: auth-in .45s cubic-bezier(.2,.8,.2,1) both; }
+.auth-card-in   { animation: auth-card-in .7s cubic-bezier(.2,.8,.2,1) both; }
+.auth-shake     { animation: auth-shake .4s ease-in-out; }
+
+/* ---------- Décors ---------- */
+.auth-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse at 70% 55%, #000 20%, transparent 70%);
+          mask-image: radial-gradient(ellipse at 70% 55%, #000 20%, transparent 70%);
+}
+.auth-dots {
+  background-image: radial-gradient(rgba(71,85,105,.22) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 25%, transparent 75%);
+          mask-image: radial-gradient(ellipse at center, #000 25%, transparent 75%);
+}
+.auth-halo {
+  background: radial-gradient(circle, rgba(125,170,255,.55) 0%, rgba(99,102,241,.22) 42%, transparent 70%);
+}
+.auth-card-border {
+  background: linear-gradient(120deg, rgba(99,102,241,.7), rgba(255,255,255,.9), rgba(56,130,246,.7), rgba(255,255,255,.9), rgba(99,102,241,.7));
+  background-size: 300% 300%;
+  animation: auth-border 9s linear infinite;
+}
+
+/* ---------- Champs à label flottant ---------- */
+.auth-field { position: relative; }
+.auth-input {
+  width: 100%;
+  height: var(--fh);
+  padding: 1.05rem 2.9rem 0 2.8rem;
+  font-size: .9rem;
+  color: #0f172a;
+  background: rgba(248,250,252,.9);
+  border: 1.5px solid #e2e8f0;
+  border-radius: .9rem;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s, background-color .2s;
+}
+.auth-input:hover { border-color: #cbd5e1; }
+.auth-label {
+  position: absolute;
+  left: 2.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: .875rem;
+  color: #64748b;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 5.2rem);
+  transition: top .18s ease, transform .18s ease, font-size .18s ease, letter-spacing .18s ease;
+}
+.auth-input:focus ~ .auth-label,
+.auth-input:not(:placeholder-shown) ~ .auth-label,
+.auth-input:-webkit-autofill ~ .auth-label {
+  top: .5rem;
+  transform: none;
+  font-size: .625rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* ---------- Bouton principal : reflet au survol ---------- */
+.auth-btn { position: relative; overflow: hidden; }
+.auth-btn::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform .8s ease;
+}
+.auth-btn:hover:not(:disabled)::after { transform: translateX(120%); }
+
+/* ---------- Scroll masqué (simple filet de sécurité sur très petits écrans) ---------- */
+.auth-noscrollbar { scrollbar-width: none; }
+.auth-noscrollbar::-webkit-scrollbar { display: none; }
+
+/* ---------- Écrans peu hauts : on compacte pour tout garder sans défiler ---------- */
+@media (max-height: 700px) { .auth-hide-short  { display: none !important; } }
+@media (max-height: 620px) { .auth-hide-xshort { display: none !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-float, .auth-spin-slow, .auth-spin-rev, .auth-card-border, .auth-in, .auth-card-in { animation: none !important; }
+}
+`
+
+/* ------------------------------------------------------------------ */
+/*  Champ de formulaire réutilisable                                   */
+/* ------------------------------------------------------------------ */
+type FieldProps = {
+  id: string
+  label: string
+  value: string
+  onChange: (v: string) => void
+  icon: LucideIcon
+  type?: string
+  secret?: boolean
+  autoComplete?: string
+}
+
+function Field({ id, label, value, onChange, icon: Icon, type = "text", secret = false, autoComplete = "off" }: FieldProps) {
+  const [visible, setVisible] = useState(false)
+  const inputType = secret ? (visible ? "text" : "password") : type
+
+  return (
+    <div className="auth-field">
+      <input
+        id={id}
+        type={inputType}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder=" "
+        autoComplete={autoComplete}
+        required
+        className="auth-input peer focus:bg-white focus:border-primary-500 focus:shadow-[0_0_0_4px_rgba(59,108,246,0.14)]"
+      />
+      <label htmlFor={id} className="auth-label peer-focus:text-primary-600">
+        {label}
+      </label>
+      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 transition-colors peer-focus:text-primary-600">
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      {secret && (
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+          className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 transition-colors hover:text-primary-600"
+        >
+          {visible ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Données du bloc d'information (texte inchangé)                     */
+/* ------------------------------------------------------------------ */
+const features: { icon: LucideIcon; title: string; text: string; tone: string }[] = [
+  {
+    icon: Clock,
+    title: "Pointage Instantané",
+    text: "Enregistrement précis des arrivées et départs.",
+    tone: "bg-primary-500/30 text-primary-200 border-primary-300/20",
+  },
+  {
+    icon: TrendingUp,
+    title: "Calcul de Rémunération",
+    text: "Heures supplémentaires et primes dynamiques.",
+    tone: "bg-indigo-500/30 text-indigo-200 border-indigo-300/20",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Tableaux de Bord RH",
+    text: "Validation simplifiée par les administrateurs.",
+    tone: "bg-emerald-500/30 text-emerald-200 border-emerald-300/20",
+  },
+]
 
 export default function Login() {
   const navigate = useNavigate()
   const { appUser, loading: authLoading, login, registerAdmin } = useAuth()
+
   const [identifier, setIdentifier] = useState(() => localStorage.getItem("rememberedId") ?? "")
   const [password, setPassword] = useState("")
   const [remember, setRemember] = useState(!!localStorage.getItem("rememberedId"))
-  const [showPassword, setShowPassword] = useState(false)
+
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
   const [mode, setMode] = useState<"login" | "register">("login")
   const [regEmail, setRegEmail] = useState("")
   const [regPassword, setRegPassword] = useState("")
   const [regConfirm, setRegConfirm] = useState("")
   const [regCode, setRegCode] = useState("")
 
+  async function handleRegister(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (regPassword.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return }
+    if (regPassword !== regConfirm) { setError("Les mots de passe ne correspondent pas."); return }
+    setLoading(true)
+    try {
+      // Le compte est créé puis connecté directement : redirection par l'effet ci-dessous.
+      await registerAdmin(regEmail.trim(), regPassword, regCode.trim())
+    } catch (err) {
+      // Messages du serveur : email déjà utilisé, code d'invitation incorrect, trop de tentatives…
+      setError(err instanceof ApiError && err.status < 500 ? err.message : "Impossible de créer le compte administrateur.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (!authLoading && appUser) navigate(appUser.role === "admin" ? "/admin" : "/employe", { replace: true })
+    if (!authLoading && appUser) {
+      navigate(appUser.role === "admin" ? "/admin" : "/employe", { replace: true })
+    }
   }, [appUser, authLoading, navigate])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); setError(null); setLoading(true)
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
     try {
       await login(identifier.trim(), password)
       if (remember) localStorage.setItem("rememberedId", identifier.trim())
       else localStorage.removeItem("rememberedId")
     } catch (err) {
+      // Compte désactivé, trop de tentatives, serveur injoignable : message du serveur ;
+      // identifiants refusés (401) : message unique qui ne révèle pas si le compte existe.
       const shown = err instanceof ApiError && err.status !== 401
-      setError(shown ? err.message : "Identifiant ou mot de passe incorrect.")
-    } finally { setLoading(false) }
+      setError(shown ? (err as ApiError).message : "Identifiant ou mot de passe incorrect.")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  async function handleRegister(e: React.FormEvent) {
-    e.preventDefault(); setError(null)
-    if (regPassword.length < 8) { setError("Choisissez un mot de passe d’au moins 8 caractères."); return }
-    if (regPassword !== regConfirm) { setError("Les mots de passe ne correspondent pas."); return }
-    setLoading(true)
-    try { await registerAdmin(regEmail.trim(), regPassword, regCode.trim()) }
-    catch (err) { setError(err instanceof ApiError && err.status < 500 ? err.message : "Impossible de créer le compte administrateur.") }
-    finally { setLoading(false) }
+  function switchMode(next: "login" | "register") {
+    if (next === mode) return
+    setMode(next)
+    setError(null)
   }
 
-  const fieldClass = "w-full rounded-xl border border-slate-200 bg-slate-50/80 px-11 py-3 text-[14px] text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
-  const labelClass = "mb-1.5 block text-[11px] font-bold uppercase tracking-[.11em] text-slate-600"
+  const errorBox = error && (
+    <div
+      key={error}
+      role="alert"
+      className="auth-shake flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] font-medium leading-snug text-red-600"
+    >
+      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+      <span>{error}</span>
+    </div>
+  )
 
   return (
-    <main className="auth-shell flex h-[100dvh] w-full overflow-hidden bg-[#f6f8fc] p-3 sm:p-5 lg:p-7">
-      <div className="auth-frame mx-auto grid h-full w-full max-w-[1500px] overflow-hidden rounded-[26px] border border-white bg-white shadow-[0_24px_80px_-30px_rgba(28,42,87,.28)] lg:grid-cols-[1.08fr_.92fr]">
-        <section className="hero-panel relative hidden items-center justify-center overflow-hidden bg-gradient-to-br from-[#102b72] via-[#1747a6] to-[#1678bc] p-8 sm:flex lg:p-12">
-          <div className="absolute -left-28 -top-28 h-80 w-80 rounded-full bg-blue-300/10 blur-3xl" />
-          <div className="absolute -bottom-24 -right-20 h-80 w-80 rounded-full bg-cyan-300/15 blur-3xl" />
-          <div className="absolute inset-0 opacity-[.12]" style={{backgroundImage:"radial-gradient(rgba(255,255,255,.7) .7px,transparent .7px)",backgroundSize:"22px 22px"}} />
-          <img src="/logiciel-de-pointage-technicien-tablette.webp" alt="Technicien utilisant une tablette pour le suivi des interventions" className="relative z-10 h-full max-h-[720px] w-full max-w-[760px] object-contain drop-shadow-[0_25px_45px_rgba(4,17,55,.28)]" />
-        </section>
+    <div
+      className="auth-root flex w-full overflow-hidden bg-slate-50 font-sans"
+      style={{ height: "100dvh" }}
+    >
+      <style>{css}</style>
 
-        <section className="relative flex min-h-0 flex-col justify-center overflow-hidden px-5 py-5 sm:px-9 sm:py-6 lg:overflow-hidden lg:px-10 xl:px-16">
-          <div className="mb-5 flex items-center gap-2.5 sm:hidden"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white"><Fingerprint className="h-5 w-5"/></span><span className="font-bold text-slate-900">Tempo<span className="text-indigo-600">+</span></span></div>
-          <div className="mx-auto w-full max-w-[410px]">
-            <div className="mb-6 sm:mb-7">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600"><LockKeyhole className="h-5 w-5"/></div>
-              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[.17em] text-indigo-600">{mode === "login" ? "Espace sécurisé" : "Accès administrateur"}</p>
-              <h2 className="text-[28px] font-semibold tracking-[-.04em] text-slate-950 sm:text-[32px]">{mode === "login" ? "Ravi de vous revoir" : "Créer votre compte"}</h2>
-              <p className="mt-1.5 text-[13px] leading-5 text-slate-500">{mode === "login" ? "Connectez-vous pour accéder à votre espace de gestion." : "Renseignez vos informations et votre code d’invitation."}</p>
+      {/* ================= COLONNE GAUCHE : INFO + PHOTO (masquée sur mobile/tablette) ================= */}
+      <aside className="relative hidden h-full overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-indigo-900 text-white lg:flex lg:w-7/12">
+
+        {/* Trame + lueurs décoratives */}
+        <div className="auth-grid pointer-events-none absolute inset-0" aria-hidden />
+        <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 animate-pulse rounded-full bg-primary-500/20 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 animate-pulse rounded-full bg-indigo-500/20 blur-3xl" style={{ animationDuration: "4s" }} aria-hidden />
+
+        {/* ---- Photo en arrière-plan du texte ---- */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          {/* halo lumineux derrière la photo */}
+          <div className="auth-halo absolute -bottom-[6%] -right-[10%] aspect-square w-[82%] rounded-full" />
+          {/* anneaux orbitaux */}
+          <div className="auth-spin-slow absolute -bottom-[2%] right-[0%] aspect-square w-[70%] rounded-full border border-dashed border-white/20" />
+          <div className="auth-spin-rev absolute -bottom-[14%] -right-[12%] aspect-square w-[92%] rounded-full border border-white/10" />
+          {/* photo */}
+          <img
+            src={technicienImg}
+            alt=""
+            draggable={false}
+            className="auth-float absolute bottom-[5%] right-[1%] h-[74%] w-auto max-w-[98%] select-none object-contain object-right-bottom"
+            style={{ filter: "drop-shadow(0 30px 45px rgba(2,6,23,.5))" }}
+          />
+        </div>
+
+        {/* Voile de lisibilité : assombrit la zone du texte, laisse la photo respirer */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-primary-900/85 via-primary-900/30 to-transparent" aria-hidden />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-2/5 bg-gradient-to-b from-primary-900/70 to-transparent" aria-hidden />
+
+        {/* ---- Contenu texte ---- */}
+        <div className="relative z-10 flex h-full w-full flex-col justify-between px-12 py-[clamp(1.25rem,5vh,3.5rem)] xl:px-16">
+          <div>
+            <div className="mb-[clamp(.6rem,2.4vh,1.5rem)] inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-primary-100 shadow-inner backdrop-blur-md">
+              <Sparkles className="h-3.5 w-3.5 animate-spin text-primary-300" style={{ animationDuration: "6s" }} />
+              <span>Plateforme de Gestion RH</span>
             </div>
-
-            {mode === "login" ? <form onSubmit={handleSubmit} className="space-y-4">
-              <div><label htmlFor="identifier" className={labelClass}>Identifiant ou e-mail</label><div className="relative"><UserRound className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-slate-400"/><input id="identifier" type="text" autoComplete="username" value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="Ex. EMP-001 ou nom@entreprise.fr" className={fieldClass} required /></div></div>
-              <div><label htmlFor="password" className={labelClass}>Mot de passe ou code PIN</label><div className="relative"><KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-slate-400"/><input id="password" type={showPassword ? "text":"password"} autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Saisissez votre mot de passe" className={`${fieldClass} pr-12`} required/><button type="button" aria-label={showPassword ? "Masquer le mot de passe":"Afficher le mot de passe"} onClick={()=>setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:text-slate-700">{showPassword?<EyeOff className="h-[17px] w-[17px]"/>:<Eye className="h-[17px] w-[17px]"/>}</button></div></div>
-              <label className="flex cursor-pointer items-center gap-2.5 py-0.5 text-[12px] text-slate-600"><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)} className="h-4 w-4 rounded border-slate-300 accent-indigo-600"/>Se souvenir de mon identifiant</label>
-              {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[12px] font-medium text-rose-700">{error}</div>}
-              <button type="submit" disabled={loading} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-[13px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(79,70,229,.75)] transition hover:-translate-y-0.5 hover:bg-indigo-700 disabled:pointer-events-none disabled:opacity-60">{loading?<><Loader2 className="h-4 w-4 animate-spin"/>Connexion en cours…</>:<>Accéder à mon espace<ArrowRight className="h-4 w-4 transition group-hover:translate-x-1"/></>}</button>
-              <div className="flex items-center gap-3 py-0.5"><span className="h-px flex-1 bg-slate-100"/><span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Nouveau sur Tempo+</span><span className="h-px flex-1 bg-slate-100"/></div>
-              <button type="button" onClick={()=>{setMode("register");setError(null)}} className="w-full rounded-xl border border-slate-200 bg-white py-3 text-[12px] font-semibold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50/50 hover:text-indigo-700">Créer un compte administrateur</button>
-            </form> : <form onSubmit={handleRegister} className="space-y-3">
-              {[{label:"Adresse e-mail",type:"email",value:regEmail,set:setRegEmail,placeholder:"vous@entreprise.fr",icon:Mail,auto:"email"},{label:"Mot de passe",type:"password",value:regPassword,set:setRegPassword,placeholder:"8 caractères minimum",icon:KeyRound,auto:"new-password"},{label:"Confirmer le mot de passe",type:"password",value:regConfirm,set:setRegConfirm,placeholder:"Répétez votre mot de passe",icon:Check,auto:"new-password"},{label:"Code d’invitation administrateur",type:"password",value:regCode,set:setRegCode,placeholder:"Code fourni par le propriétaire",icon:ShieldCheck,auto:"off"}].map(({label,type,value,set,placeholder,icon:Icon,auto})=><div key={label}><label className={labelClass}>{label}</label><div className="relative"><Icon className="pointer-events-none absolute left-3.5 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-slate-400"/><input type={type} value={value} onChange={e=>set(e.target.value)} placeholder={placeholder} autoComplete={auto} className={fieldClass} required/></div></div>)}
-              {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[12px] font-medium text-rose-700">{error}</div>}
-              <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-[13px] font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:opacity-60">{loading?<><Loader2 className="h-4 w-4 animate-spin"/>Création en cours…</>:<>Créer mon compte<ArrowRight className="h-4 w-4"/></>}</button>
-              <button type="button" onClick={()=>{setMode("login");setError(null)}} className="w-full py-2 text-[12px] font-semibold text-slate-500 transition hover:text-indigo-700">← Retour à la connexion</button>
-            </form>}
-            {MOCK_MODE && mode === "login" && <div className="mt-4"><DemoAccounts onPick={(id,pwd)=>{setIdentifier(id);setPassword(pwd);setError(null)}}/></div>}
-            <div className="mt-6 flex items-center justify-center gap-1.5 text-[10px] text-slate-400"><BadgeCheck className="h-3.5 w-3.5 text-emerald-500"/>Vos données sont protégées et confidentielles</div>
+            <h1 className="mb-[clamp(.5rem,1.8vh,1rem)] text-[clamp(1.75rem,min(5.4vh,3.7vw),3rem)] font-extrabold leading-[1.1] tracking-tight">
+              Suivi des pointages &amp;<br />rémunération en temps réel
+            </h1>
+            <p className="max-w-[26rem] text-[clamp(.85rem,2.1vh,1.1rem)] leading-relaxed text-primary-100/90">
+              Optimisez le temps de travail de vos équipes, suivez les présences instantanément et automatisez le calcul de la paie en toute simplicité.
+            </p>
           </div>
-          <div className="absolute bottom-3 left-0 right-0 hidden text-center text-[10px] text-slate-300 lg:block">Tempo+ · Gestion des équipes</div>
-        </section>
-      </div>
-      <style>{`
-        @media(max-height:700px){.auth-shell{padding:10px}.auth-frame{border-radius:20px}.auth-frame section:last-child{padding-top:12px;padding-bottom:12px}.auth-frame section:last-child>div:first-child:not(.sm\\:hidden){transform:scale(.94);transform-origin:center}.hero-panel{padding-top:26px;padding-bottom:26px}}
-        @media(max-width:639px){.auth-shell{min-height:100dvh;padding:0}.auth-frame{border:0;border-radius:0}}
-        @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
-      `}</style>
-    </main>
+
+          {/* Cartes (version compacte pour tenir sur un seul écran) */}
+          <div className="max-w-[20.5rem] space-y-[clamp(.4rem,1.4vh,.75rem)]">
+            {features.map(({ icon: Icon, title, text, tone }) => (
+              <div
+                key={title}
+                className="flex items-center gap-3.5 rounded-2xl border border-white/15 bg-white/10 p-[clamp(.55rem,1.6vh,.9rem)] shadow-xl backdrop-blur-xl transition duration-300 hover:scale-[1.02] hover:bg-white/15"
+              >
+                <div className={`shrink-0 rounded-xl border p-2.5 ${tone}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-white">{title}</h3>
+                  <p className="auth-hide-xshort text-xs leading-snug text-primary-100/75">{text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-white/10 pt-[clamp(.5rem,1.8vh,1.25rem)] text-xs text-primary-100/70">
+            <span className="flex items-center gap-1.5 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Sécurisé &amp; Conforme
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      {/* ================= COLONNE DROITE : FORMULAIRE ================= */}
+      <main className="auth-noscrollbar relative h-full w-full overflow-y-auto lg:w-5/12">
+        {/* Décor : aurore + trame de points */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-primary-200/60 blur-3xl" />
+          <div className="absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-indigo-200/60 blur-3xl" />
+          <div className="absolute right-[18%] top-[55%] h-40 w-40 rounded-full bg-sky-200/50 blur-3xl" />
+          <div className="auth-dots absolute inset-0" />
+        </div>
+
+        <div className="relative flex min-h-full items-center justify-center p-4 sm:p-8">
+          {/* Carte avec bordure dégradée animée */}
+          <div className="auth-card-in auth-card-border w-full max-w-[440px] rounded-[26px] p-px shadow-2xl shadow-primary-900/10">
+            <div className="rounded-[25px] bg-white/85 p-[clamp(1.1rem,3.4vh,2rem)] backdrop-blur-xl sm:px-[clamp(1.4rem,3.2vh,2.25rem)]">
+
+              {/* Marque */}
+              <div className="mb-[clamp(.7rem,2vh,1.1rem)] flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-indigo-600 text-white shadow-lg shadow-primary-600/30">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div className="leading-tight">
+                  <p className="text-sm font-bold text-slate-900">Pointage &amp; Rémunération</p>
+                  <p className="text-[11px] font-medium text-slate-500">Portail sécurisé</p>
+                </div>
+              </div>
+
+              {/* Sélecteur de mode (pastille animée) */}
+              <div className="relative mb-[clamp(.7rem,2.2vh,1.25rem)] grid grid-cols-2 rounded-xl bg-slate-100 p-1" role="group" aria-label="Choix du mode">
+                <span
+                  className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-white shadow-sm ring-1 ring-slate-200/70 transition-transform duration-300 ease-out"
+                  style={{ transform: mode === "register" ? "translateX(100%)" : "translateX(0)" }}
+                  aria-hidden
+                />
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  aria-pressed={mode === "login"}
+                  className={`relative z-10 rounded-lg py-2 text-[13px] font-semibold transition-colors ${mode === "login" ? "text-primary-700" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Connexion
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode("register")}
+                  aria-pressed={mode === "register"}
+                  className={`relative z-10 rounded-lg py-2 text-[13px] font-semibold transition-colors ${mode === "register" ? "text-primary-700" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Créer un compte
+                </button>
+              </div>
+
+              {/* Titre */}
+              <div key={`title-${mode}`} className="auth-in mb-[clamp(.7rem,2.2vh,1.25rem)]">
+                <h2 className="text-[clamp(1.35rem,3.4vh,1.75rem)] font-bold tracking-tight text-slate-900">
+                  {mode === "login" ? "Content de vous revoir" : "Compte administrateur"}
+                </h2>
+                <p className="auth-hide-xshort mt-1 text-[13px] leading-snug text-slate-500">
+                  {mode === "login"
+                    ? "Identifiez-vous pour accéder à votre espace de pointage et de paie."
+                    : "Renseignez vos informations et le code d'invitation fourni par le propriétaire."}
+                </p>
+              </div>
+
+              {/* ---------- Formulaire ---------- */}
+              {mode === "register" ? (
+                <form key="register" onSubmit={handleRegister} className="auth-in space-y-[clamp(.55rem,1.6vh,.9rem)]">
+                  <Field id="reg-email" label="Adresse e-mail" type="email" icon={Mail} value={regEmail} onChange={setRegEmail} autoComplete="email" />
+                  <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
+                    <Field id="reg-password" label="Mot de passe" icon={Lock} secret value={regPassword} onChange={setRegPassword} autoComplete="new-password" />
+                    <Field id="reg-confirm" label="Confirmation" icon={Lock} secret value={regConfirm} onChange={setRegConfirm} autoComplete="new-password" />
+                  </div>
+                  <p className="auth-hide-short -mt-1 text-[11px] text-slate-400">6 caractères minimum.</p>
+                  <Field id="reg-code" label="Code d'invitation administrateur" icon={KeyRound} secret value={regCode} onChange={setRegCode} />
+
+                  {errorBox}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="auth-btn group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 py-[clamp(.7rem,1.9vh,.95rem)] text-sm font-semibold text-white shadow-lg shadow-primary-600/30 transition hover:shadow-xl hover:shadow-primary-600/40 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Création en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Créer le compte administrateur</span>
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <form key="login" onSubmit={handleSubmit} className="auth-in space-y-[clamp(.55rem,1.6vh,.9rem)]">
+                  <Field id="login-id" label="Identifiant ou e-mail" icon={User} value={identifier} onChange={setIdentifier} autoComplete="username" />
+                  <Field id="login-pwd" label="Mot de passe ou PIN" icon={Lock} secret value={password} onChange={setPassword} autoComplete="current-password" />
+
+                  {/* Se souvenir de moi */}
+                  <label className="flex w-fit cursor-pointer select-none items-center gap-2.5 text-[13px] text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={remember}
+                      onChange={(e) => setRemember(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    Se souvenir de mon identifiant
+                  </label>
+
+                  {errorBox}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="auth-btn group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500 py-[clamp(.7rem,1.9vh,.95rem)] text-sm font-semibold text-white shadow-lg shadow-primary-600/30 transition hover:shadow-xl hover:shadow-primary-600/40 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Connexion en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Se connecter</span>
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {MOCK_MODE && mode === "login" && (
+                <DemoAccounts onPick={(id, pwd) => { setIdentifier(id); setPassword(pwd); setError(null) }} />
+              )}
+
+              {/* Pied de carte */}
+              <p className="auth-hide-short mt-[clamp(.6rem,1.8vh,1.1rem)] flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+                <Lock className="h-3 w-3" /> Connexion sécurisée et chiffrée
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   )
 }
