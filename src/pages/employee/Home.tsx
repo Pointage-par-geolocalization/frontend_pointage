@@ -146,7 +146,7 @@ export default function EmployeeHome() {
       {/* En-tête */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 capitalize">
-          Bonjour, {employee?.firstName ?? appUser?.employeeCode ?? ""} 👋
+          Bonjour, {employee?.firstName ?? appUser?.employeeCode ?? ""}
         </h1>
         <p className="text-sm text-slate-500 capitalize mt-0.5">{greeting}</p>
       </div>
