@@ -324,7 +324,6 @@ export default function Login() {
         {/* Pied de page */}
         <div className="pt-6 border-t border-slate-100 text-center lg:text-left">
           <p className="text-xs text-slate-400">
-            Besoin d'assistance technique ? Contactez votre administrateur.
           </p>
         </div>
 
