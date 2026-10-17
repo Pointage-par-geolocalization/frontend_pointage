@@ -57,23 +57,11 @@ export default function Login() {
   return (
     <main className="auth-shell flex h-[100dvh] w-full overflow-hidden bg-[#f6f8fc] p-3 sm:p-5 lg:p-7">
       <div className="auth-frame mx-auto grid h-full w-full max-w-[1500px] overflow-hidden rounded-[26px] border border-white bg-white shadow-[0_24px_80px_-30px_rgba(28,42,87,.28)] lg:grid-cols-[1.08fr_.92fr]">
-        <section className="hero-panel relative hidden overflow-hidden p-9 text-white sm:flex sm:flex-col sm:justify-between lg:p-12 xl:p-14">
-          <div className="hero-photo absolute inset-0" />
-          <div className="hero-shade absolute inset-0" />
-          <div className="hero-grid absolute inset-0 opacity-[.14]" />
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/15 shadow-lg backdrop-blur-md"><Fingerprint className="h-6 w-6" /></div>
-            <div><div className="text-[15px] font-bold tracking-tight">Tempo<span className="text-cyan-300">+</span></div><div className="text-[10px] font-medium uppercase tracking-[.2em] text-white/65">Gestion des équipes</div></div>
-          </div>
-          <div className="relative z-10 my-auto max-w-[620px] py-8">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-2 text-[11px] font-semibold tracking-wide text-white/90 backdrop-blur-md"><Sparkles className="h-3.5 w-3.5 text-cyan-300" /> Votre espace de travail, en mieux</div>
-            <h1 className="max-w-[600px] text-4xl font-semibold leading-[1.08] tracking-[-.045em] xl:text-[54px]">Le temps de vos équipes.<br/><span className="text-cyan-200">Maîtrisé simplement.</span></h1>
-            <p className="mt-5 max-w-[490px] text-[15px] leading-7 text-white/75">Pointage, présence et rémunération réunis dans un espace clair, fiable et pensé pour le terrain.</p>
-            <div className="mt-8 grid max-w-[540px] grid-cols-3 gap-2.5">
-              {[{ icon: Clock3, title: "Pointage", sub: "En temps réel" }, { icon: TrendingUp, title: "Rémunération", sub: "Calcul simplifié" }, { icon: CalendarCheck2, title: "Présences", sub: "Vue d’ensemble" }].map(({icon: Icon,title,sub}) => <div key={title} className="rounded-2xl border border-white/15 bg-white/[.11] p-3.5 backdrop-blur-md"><Icon className="mb-3 h-[18px] w-[18px] text-cyan-200"/><div className="text-[12px] font-semibold">{title}</div><div className="mt-1 text-[10px] text-white/60">{sub}</div></div>)}
-            </div>
-          </div>
-          <div className="relative z-10 flex items-center justify-between border-t border-white/20 pt-4 text-[11px] text-white/65"><span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-300"/> Accès sécurisé</span><span>Une gestion plus sereine, chaque jour.</span></div>
+        <section className="hero-panel relative hidden items-center justify-center overflow-hidden bg-gradient-to-br from-[#102b72] via-[#1747a6] to-[#1678bc] p-8 sm:flex lg:p-12">
+          <div className="absolute -left-28 -top-28 h-80 w-80 rounded-full bg-blue-300/10 blur-3xl" />
+          <div className="absolute -bottom-24 -right-20 h-80 w-80 rounded-full bg-cyan-300/15 blur-3xl" />
+          <div className="absolute inset-0 opacity-[.12]" style={{backgroundImage:"radial-gradient(rgba(255,255,255,.7) .7px,transparent .7px)",backgroundSize:"22px 22px"}} />
+          <img src="/logiciel-de-pointage-technicien-tablette.webp" alt="Technicien utilisant une tablette pour le suivi des interventions" className="relative z-10 h-full max-h-[720px] w-full max-w-[760px] object-contain drop-shadow-[0_25px_45px_rgba(4,17,55,.28)]" />
         </section>
 
         <section className="relative flex min-h-0 flex-col justify-center overflow-hidden px-5 py-5 sm:px-9 sm:py-6 lg:overflow-hidden lg:px-10 xl:px-16">
@@ -107,9 +95,6 @@ export default function Login() {
         </section>
       </div>
       <style>{`
-        .hero-photo{background-image:url('/logiciel-de-pointage-technicien-tablette.webp');background-size:cover;background-position:center 42%;transform:scale(1.02)}
-        .hero-shade{background:linear-gradient(112deg,rgba(11,24,62,.93) 0%,rgba(20,38,92,.84) 52%,rgba(14,66,105,.66) 100%)}
-        .hero-grid{background-image:radial-gradient(rgba(255,255,255,.42) .65px,transparent .65px);background-size:19px 19px;mask-image:linear-gradient(90deg,black,transparent 90%)}
         @media(max-height:700px){.auth-shell{padding:10px}.auth-frame{border-radius:20px}.auth-frame section:last-child{padding-top:12px;padding-bottom:12px}.auth-frame section:last-child>div:first-child:not(.sm\\:hidden){transform:scale(.94);transform-origin:center}.hero-panel{padding-top:26px;padding-bottom:26px}}
         @media(max-width:639px){.auth-shell{min-height:100dvh;padding:0}.auth-frame{border:0;border-radius:0}}
         @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
