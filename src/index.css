@@ -42,3 +42,38 @@ body { @apply bg-gray-50 text-gray-900; }
 .dark .focus\:bg-white:focus { background-color: #0f172a; }
 .dark input, .dark textarea, .dark select { color: #e2e8f0 !important; }
 .dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
+
+/* ---- Menu latéral : barre de défilement fine, visible seulement si le menu dépasse ---- */
+.sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 9999px; }
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.4); }
+
+/* ---- Mode sombre : nouveaux éléments (menu de compte, recherche du menu) ---- */
+.dark [role="menu"] .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / 0.15); }
+.dark [role="menu"] .text-red-600 { color: #fca5a5; }
+.dark aside[data-sidebar] input { background-color: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.12); color: #e2e8f0; }
+
+/* ---- Tableau de bord admin : pastilles colorées lisibles en mode sombre (limité à .dash) ---- */
+.dark .dash .bg-emerald-50 { background-color: rgb(16 185 129 / 0.14); }
+.dark .dash .bg-rose-50    { background-color: rgb(244 63 94 / 0.14); }
+.dark .dash .bg-amber-50   { background-color: rgb(245 158 11 / 0.14); }
+.dark .dash .bg-amber-100  { background-color: rgb(245 158 11 / 0.22); }
+.dark .dash .bg-blue-50    { background-color: rgb(59 130 246 / 0.14); }
+.dark .dash .bg-indigo-50  { background-color: rgb(99 102 241 / 0.16); }
+.dark .dash .bg-amber-50\/50 { background-color: rgb(245 158 11 / 0.1); }
+.dark .dash .border-emerald-100, .dark .dash .border-emerald-200 { border-color: rgb(16 185 129 / 0.3); }
+.dark .dash .border-rose-100,    .dark .dash .border-rose-200    { border-color: rgb(244 63 94 / 0.3); }
+.dark .dash .border-amber-100,   .dark .dash .border-amber-200   { border-color: rgb(245 158 11 / 0.3); }
+.dark .dash .border-blue-100     { border-color: rgb(59 130 246 / 0.3); }
+.dark .dash .border-indigo-100   { border-color: rgb(99 102 241 / 0.3); }
+.dark .dash .text-emerald-700, .dark .dash .text-emerald-600 { color: #6ee7b7; }
+.dark .dash .text-rose-700,    .dark .dash .text-rose-600    { color: #fda4af; }
+.dark .dash .text-amber-700,   .dark .dash .text-amber-600   { color: #fcd34d; }
+.dark .dash .text-blue-600     { color: #93c5fd; }
+.dark .dash .text-indigo-600   { color: #a5b4fc; }
+.dark .dash .text-emerald-700\/80 { color: rgb(110 231 183 / 0.85); }
+.dark .dash .text-rose-700\/80    { color: rgb(253 164 175 / 0.85); }
+.dark .dash .text-amber-700\/80   { color: rgb(252 211 77 / 0.85); }
+.dark .dash .text-slate-400 { color: #94a3b8; }
