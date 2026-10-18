@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
 
   server: {
-    url: 'https://suivie-fortico.vercel.app/login',
+    url: 'https://frontend-pointage.vercel.app/login',
     cleartext: false
   }
 };
