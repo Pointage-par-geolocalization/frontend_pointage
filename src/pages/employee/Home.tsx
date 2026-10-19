@@ -22,6 +22,9 @@ export default function EmployeeHome() {
   const { capture, loading: gpsLoading, error: gpsError, clearError } = useGeolocation()
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [departments, setDepartments] = useState<Workplace[]>([])
+  const [employeeLoading, setEmployeeLoading] = useState(true)
+  const [departmentsLoading, setDepartmentsLoading] = useState(true)
+  const [departmentLoadError, setDepartmentLoadError] = useState<string | null>(null)
   const [attendance, setAttendance] = useState<Attendance | null>(null)
   const [sessions, setSessions] = useState<Attendance[]>([])
   const [balance, setBalance] = useState<number>(0)
@@ -46,10 +49,16 @@ export default function EmployeeHome() {
     } catch (e) {
       setToastTone("error")
       setToast(errorMessage(e, "Impossible de charger vos données."))
+    } finally {
+      setEmployeeLoading(false)
     }
   }
 
-  useEffect(() => { if (appUser) refresh() }, [appUser?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!appUser) return
+    setEmployeeLoading(true)
+    void refresh()
+  }, [appUser?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!appUser) return
     const refreshOnResume = () => {
@@ -63,8 +72,20 @@ export default function EmployeeHome() {
     }
   }, [appUser?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    listWorkplaces().then(setDepartments).catch(() => {})
+    let active = true
+    setDepartmentsLoading(true)
+    listWorkplaces()
+      .then((items) => { if (active) setDepartments(items) })
+      .catch((e) => {
+        if (!active) return
+        const message = errorMessage(e, "Impossible de charger la liste des lieux de travail.")
+        setDepartmentLoadError(message)
+        setToastTone("error")
+        setToast(message)
+      })
+      .finally(() => { if (active) setDepartmentsLoading(false) })
     getSettings().then((s) => setSettingsCache({ normalWorkMinutes: s.normalWorkMinutes })).catch(() => {})
+    return () => { active = false }
   }, [])
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000)
@@ -74,9 +95,26 @@ export default function EmployeeHome() {
   const myDepartments = departments.filter((d) => employee?.departmentIds?.includes(d.id))
 
   function openDeptPicker() {
+    if (employeeLoading || departmentsLoading) {
+      setToastTone("error")
+      setToast("Chargement de votre fiche et des lieux de travail. Réessayez dans un instant.")
+      return
+    }
+    if (departmentLoadError) {
+      setToastTone("error")
+      setToast(departmentLoadError)
+      return
+    }
+    if (!employee) {
+      setToastTone("error")
+      setToast("Impossible de charger votre fiche salarié. Déconnectez-vous puis reconnectez-vous.")
+      return
+    }
     if (myDepartments.length === 0) {
       setToastTone("error")
-      setToast("Aucun département ne vous est affecté. Contactez votre administrateur.")
+      setToast(!employee.departmentIds?.length
+        ? "Aucun lieu de travail n’est associé à votre compte. Demandez à l’administrateur de vous affecter à un département."
+        : "Vos lieux affectés ne sont pas disponibles dans la liste. Demandez à l’administrateur de vérifier les affectations.")
       return
     }
     setPickedDeptId(myDepartments[0].id)
@@ -193,11 +231,11 @@ export default function EmployeeHome() {
             </div>
             <button
               onClick={openDeptPicker}
-              disabled={gpsLoading || punching}
+              disabled={gpsLoading || punching || employeeLoading || departmentsLoading}
               className="w-full max-w-sm mx-auto bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-primary-600/20 disabled:opacity-60 flex items-center justify-center gap-2"
             >
               <Play className="w-5 h-5 fill-current" />
-              <span>{gpsLoading ? "Localisation GPS..." : "POINTAGE ENTRÉE"}</span>
+              <span>{gpsLoading ? "Localisation GPS..." : employeeLoading || departmentsLoading ? "Chargement des lieux..." : "POINTAGE ENTRÉE"}</span>
             </button>
           </div>
         )}
@@ -300,11 +338,11 @@ export default function EmployeeHome() {
             </div>
             <button
               onClick={openDeptPicker}
-              disabled={gpsLoading || punching}
+              disabled={gpsLoading || punching || employeeLoading || departmentsLoading}
               className="w-full max-w-sm mx-auto bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3.5 rounded-xl transition shadow-lg shadow-primary-600/20 disabled:opacity-60 flex items-center justify-center gap-2"
             >
               <Play className="w-5 h-5 fill-current" />
-              <span>NOUVEAU POINTAGE ENTRÉE</span>
+              <span>{employeeLoading || departmentsLoading ? "Chargement des lieux..." : "NOUVEAU POINTAGE ENTRÉE"}</span>
             </button>
           </div>
         )}
@@ -352,6 +390,7 @@ export default function EmployeeHome() {
     </div>
   )
 }
+
 
 
 // // src/pages/employee/Home.tsx
