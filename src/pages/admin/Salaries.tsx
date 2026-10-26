@@ -58,15 +58,24 @@ export default function AdminSalaries() {
 
   async function fetchFilteredPayments(filters: typeof paymentFilters): Promise<Payment[]> {
     const selectedCodes = filters.employeeCodes
+    // Le serveur limite la requête au salarié unique choisi et à la période;
+    // les autres critères sont appliqués localement pour rester fiables avec les anciennes versions d'API.
     const result = await listPayments({
       employeeCode: selectedCodes.length === 1 ? selectedCodes[0] : undefined,
       from: filters.from || undefined,
       to: filters.to || undefined,
-      type: filters.type || undefined,
-      status: (filters.status || undefined) as PaymentStatus | undefined,
-      siteId: filters.siteId || undefined,
     })
-    return selectedCodes.length > 1 ? result.filter((payment) => selectedCodes.includes(payment.employeeCode)) : result
+    const typeSearch = filters.type.trim().toLocaleLowerCase("fr-FR")
+    return result.filter((payment) => {
+      if (selectedCodes.length > 1 && !selectedCodes.includes(payment.employeeCode)) return false
+      const paymentDate = payment.date.slice(0, 10)
+      if (filters.from && paymentDate < filters.from) return false
+      if (filters.to && paymentDate > filters.to) return false
+      if (typeSearch && !(payment.type || "").toLocaleLowerCase("fr-FR").includes(typeSearch)) return false
+      if (filters.status && payment.status !== filters.status) return false
+      if (filters.siteId && payment.siteId !== filters.siteId) return false
+      return true
+    })
   }
 
   useEffect(() => { refresh(); listEmployees().then(setEmployees).catch(() => {}); listSites().then(setSites).catch(() => {}) }, [])
@@ -199,7 +208,7 @@ export default function AdminSalaries() {
               <span className="truncate">{paymentFilters.employeeCodes.length === 0 ? "Tous les salariés" : paymentFilters.employeeCodes.length === 1 ? employeeName(employees.find((employee) => employee.employeeCode === paymentFilters.employeeCodes[0])!) : `${paymentFilters.employeeCodes.length} salariés sélectionnés`}</span>
               <span className="text-slate-400">▾</span>
             </button>
-            {employeeSelectorOpen && <div className="absolute left-0 top-full z-30 mt-1 w-full min-w-[260px] rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+            {employeeSelectorOpen && <div onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="absolute left-0 top-full z-30 mt-1 w-full min-w-[260px] rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
               <input autoFocus value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} placeholder="Rechercher un salarié…" className="mb-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-primary-500" />
               <div className="mb-2 flex justify-between gap-2 border-b pb-2 text-xs">
                 <button type="button" onClick={() => setPaymentFilters((current) => ({ ...current, employeeCodes: Array.from(new Set([...current.employeeCodes, ...employees.filter((employee) => employeeName(employee).toLowerCase().includes(employeeSearch.toLowerCase()) || employee.employeeCode.toLowerCase().includes(employeeSearch.toLowerCase())).map((employee) => employee.employeeCode)])) }))} className="font-medium text-primary-700">Sélectionner les résultats</button>
@@ -465,6 +474,7 @@ export default function AdminSalaries() {
     </div>
   )
 }
+
 
 // // src/pages/admin/Salaries.tsx
 // import { useEffect, useState } from "react"
