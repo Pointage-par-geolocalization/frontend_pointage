@@ -19,16 +19,17 @@ type Row = SalarySummaryRow
 export default function AdminSalaries() {
   const [rows, setRows] = useState<Row[]>([])
   const [totals, setTotals] = useState({ earned: 0, paid: 0, due: 0 })
-  const [payments, setPayments] = useState<Record<string, Payment[]>>({})
   const [loading, setLoading] = useState(true)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [sites, setSites] = useState<Site[]>([])
-  const [paymentFilters, setPaymentFilters] = useState({ employeeCode: "", from: "", to: "", type: "", status: "", siteId: "" })
+  const [paymentFilters, setPaymentFilters] = useState({ employeeCodes: [] as string[], from: "", to: "", type: "", status: "", siteId: "" })
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([])
   const [editPayment, setEditPayment] = useState<Payment | null>(null)
   const [editForm, setEditForm] = useState({ amount: "", note: "", type: "", status: "EN_ATTENTE" as PaymentStatus, siteId: "" })
   const [openPayFor, setOpenPayFor] = useState<string | null>(null) // employee.id
-  const [openHistoryFor, setOpenHistoryFor] = useState<string | null>(null)
+  const [openHistoryFor, setOpenHistoryFor] = useState<string[]>([])
+  const [employeeSelectorOpen, setEmployeeSelectorOpen] = useState(false)
+  const [employeeSearch, setEmployeeSearch] = useState("")
   const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
@@ -55,21 +56,53 @@ export default function AdminSalaries() {
     }
   }
 
-  useEffect(() => { refresh(); listEmployees().then(setEmployees).catch(()=>{}); listSites().then(setSites).catch(()=>{}) }, [])
-  useEffect(() => { listPayments({ employeeCode: paymentFilters.employeeCode || undefined, from: paymentFilters.from || undefined, to: paymentFilters.to || undefined, type: paymentFilters.type || undefined, status: (paymentFilters.status || undefined) as PaymentStatus | undefined, siteId: paymentFilters.siteId || undefined }).then(setFilteredPayments).catch(e=>setToast({msg:errorMessage(e,"Impossible de filtrer les paiements."),tone:"error"})) }, [paymentFilters])
-  function beginEdit(p: Payment) { setEditPayment(p); setEditForm({amount:String(p.amount),note:p.note || "",type:p.type || "",status:p.status || "EN_ATTENTE",siteId:p.siteId || ""}) }
-  async function saveEdit(e: React.FormEvent) { e.preventDefault(); if(!editPayment) return; setSaving(true); try { await updatePayment(editPayment.id,{amount:Number(editForm.amount),note:editForm.note,type:editForm.type,status:editForm.status,siteId:editForm.siteId || null}); setEditPayment(null); setToast({msg:"Paiement mis à jour.",tone:"success"}); const list=await listPayments({employeeCode:paymentFilters.employeeCode || undefined,from:paymentFilters.from || undefined,to:paymentFilters.to || undefined,type:paymentFilters.type || undefined,status:(paymentFilters.status||undefined) as PaymentStatus|undefined,siteId:paymentFilters.siteId||undefined}); setFilteredPayments(list); await refresh() } catch(e){setError(errorMessage(e,"Modification impossible."))} finally{setSaving(false)} }
+  async function fetchFilteredPayments(filters: typeof paymentFilters): Promise<Payment[]> {
+    const selectedCodes = filters.employeeCodes
+    const result = await listPayments({
+      employeeCode: selectedCodes.length === 1 ? selectedCodes[0] : undefined,
+      from: filters.from || undefined,
+      to: filters.to || undefined,
+      type: filters.type || undefined,
+      status: (filters.status || undefined) as PaymentStatus | undefined,
+      siteId: filters.siteId || undefined,
+    })
+    return selectedCodes.length > 1 ? result.filter((payment) => selectedCodes.includes(payment.employeeCode)) : result
+  }
 
+  useEffect(() => { refresh(); listEmployees().then(setEmployees).catch(() => {}); listSites().then(setSites).catch(() => {}) }, [])
+  useEffect(() => {
+    let active = true
+    fetchFilteredPayments(paymentFilters)
+      .then((result) => { if (active) setFilteredPayments(result) })
+      .catch((e) => { if (active) setToast({ msg: errorMessage(e, "Impossible de filtrer les paiements."), tone: "error" }) })
+    return () => { active = false }
+  }, [paymentFilters])
+  useEffect(() => { setOpenHistoryFor(paymentFilters.employeeCodes) }, [paymentFilters.employeeCodes])
 
-  async function toggleHistory(code: string) {
-    if (openHistoryFor === code) { setOpenHistoryFor(null); return }
-    setOpenHistoryFor(code)
+  const displayRows = paymentFilters.employeeCodes.length
+    ? rows.filter((row) => paymentFilters.employeeCodes.includes(row.employee.employeeCode))
+    : rows
+  const displayTotals = paymentFilters.employeeCodes.length
+    ? displayRows.reduce((sum, row) => ({ earned: sum.earned + row.earned, paid: sum.paid + row.paid, due: sum.due + row.due }), { earned: 0, paid: 0, due: 0 })
+    : totals
+
+  function beginEdit(p: Payment) { setEditPayment(p); setEditForm({ amount: String(p.amount), note: p.note || "", type: p.type || "", status: p.status || "EN_ATTENTE", siteId: p.siteId || "" }) }
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editPayment) return
+    setSaving(true)
     try {
-      const list = await listPayments(code)
-      setPayments((prev) => ({ ...prev, [code]: list }))
-    } catch (e) {
-      setToast({ msg: errorMessage(e, "Impossible de charger l'historique."), tone: "error" })
-    }
+      await updatePayment(editPayment.id, { amount: Number(editForm.amount), note: editForm.note, type: editForm.type, status: editForm.status, siteId: editForm.siteId || null })
+      setEditPayment(null)
+      setToast({ msg: "Paiement mis à jour.", tone: "success" })
+      setFilteredPayments(await fetchFilteredPayments(paymentFilters))
+      await refresh()
+    } catch (e) { setError(errorMessage(e, "Modification impossible.")) }
+    finally { setSaving(false) }
+  }
+
+  function toggleHistory(code: string) {
+    setOpenHistoryFor((current) => current.includes(code) ? current.filter((item) => item !== code) : [...current, code])
   }
 
   function openPayModal(code: string) {
@@ -110,10 +143,6 @@ export default function AdminSalaries() {
     setArchiveError(null)
     try {
       await softDeletePayment(archiveTarget.payment.id, reason)
-      setPayments((prev) => ({
-        ...prev,
-        [archiveTarget.employeeCode]: (prev[archiveTarget.employeeCode] || []).filter((payment) => payment.id !== archiveTarget.payment.id),
-      }))
       setFilteredPayments((prev) => prev.filter((payment) => payment.id !== archiveTarget.payment.id))
       await refresh()
       if (deletedPayments !== null || showDeletedHistory) await loadDeletedPayments()
@@ -141,10 +170,10 @@ export default function AdminSalaries() {
       // Le serveur revérifie que le montant ne dépasse pas le reste à payer et journalise le paiement.
       await createPayment(row.employee.employeeCode, Math.round(value), note)
       setOpenPayFor(null)
-      setPayments((prev) => { const next = { ...prev }; delete next[row.employee.employeeCode]; return next })
-      if (openHistoryFor === row.employee.employeeCode) setOpenHistoryFor(null)
+      setFilteredPayments(await fetchFilteredPayments(paymentFilters))
+      setOpenHistoryFor((current) => current.includes(row.employee.employeeCode) ? current : [...current, row.employee.employeeCode])
       setToast({ msg: `${formatAriary(value)} payé à ${row.employee.firstName} ${row.employee.lastName}.`, tone: "success" })
-      refresh()
+      await refresh()
     } catch (err) {
       setError(errorMessage(err, "Le paiement n'a pas pu être enregistré."))
     } finally {
@@ -162,11 +191,57 @@ export default function AdminSalaries() {
         </button>
       </div>
 
-      <Card className="space-y-3"><h2 className="font-semibold">Filtrer les paiements</h2><div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2"><select value={paymentFilters.employeeCode} onChange={e=>setPaymentFilters({...paymentFilters,employeeCode:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"><option value="">Tous les salariés</option>{employees.map(e=><option key={e.employeeCode} value={e.employeeCode}>{employeeName(e)}</option>)}</select><input aria-label="Du" type="date" value={paymentFilters.from} onChange={e=>setPaymentFilters({...paymentFilters,from:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"/><input aria-label="Au" type="date" value={paymentFilters.to} onChange={e=>setPaymentFilters({...paymentFilters,to:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"/><input placeholder="Type libre" value={paymentFilters.type} onChange={e=>setPaymentFilters({...paymentFilters,type:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"/><select value={paymentFilters.status} onChange={e=>setPaymentFilters({...paymentFilters,status:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"><option value="">Tous statuts</option><option value="PAYE">PAYE</option><option value="EN_ATTENTE">EN_ATTENTE</option><option value="ANNULE">ANNULE</option></select><select value={paymentFilters.siteId} onChange={e=>setPaymentFilters({...paymentFilters,siteId:e.target.value})} className="border rounded-lg px-3 py-2 text-sm"><option value="">Tous chantiers</option>{sites.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></div><button onClick={()=>setPaymentFilters({employeeCode:"",from:"",to:"",type:"",status:"",siteId:""})} className="text-xs text-primary-700">Réinitialiser</button><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead><tr className="text-left text-slate-500"><th>Date</th><th>Salarié</th><th>Type</th><th>Statut</th><th>Montant</th><th>Note</th><th>Actions</th></tr></thead><tbody className="divide-y">{filteredPayments.map(p=><tr key={p.id}><td className="py-2">{fmtDay(p.date)}</td><td>{p.employeeName || p.employeeCode}</td><td>{p.type || "—"}</td><td>{p.status || "—"}</td><td>{formatAriary(p.amount)}</td><td>{p.note}</td><td><div className="flex items-center gap-3"><button onClick={()=>beginEdit(p)} className="inline-flex items-center gap-1 text-primary-700"><Pencil className="w-3 h-3"/>Éditer</button><button type="button" onClick={()=>openArchiveModal(p.employeeCode,p)} className="inline-flex items-center gap-1 text-rose-600"><Trash2 className="w-3 h-3"/>Supprimer</button></div></td></tr>)}</tbody></table>{filteredPayments.length===0&&<p className="py-3 text-sm text-slate-500">Aucun paiement correspondant.</p>}</div></Card>
+      <Card className="space-y-3">
+        <h2 className="font-semibold">Filtrer les paiements</h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="relative">
+            <button type="button" aria-expanded={employeeSelectorOpen} onClick={() => setEmployeeSelectorOpen((open) => !open)} className="flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-left text-sm">
+              <span className="truncate">{paymentFilters.employeeCodes.length === 0 ? "Tous les salariés" : paymentFilters.employeeCodes.length === 1 ? employeeName(employees.find((employee) => employee.employeeCode === paymentFilters.employeeCodes[0])!) : `${paymentFilters.employeeCodes.length} salariés sélectionnés`}</span>
+              <span className="text-slate-400">▾</span>
+            </button>
+            {employeeSelectorOpen && <div className="absolute left-0 top-full z-30 mt-1 w-full min-w-[260px] rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+              <input autoFocus value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} placeholder="Rechercher un salarié…" className="mb-2 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-primary-500" />
+              <div className="mb-2 flex justify-between gap-2 border-b pb-2 text-xs">
+                <button type="button" onClick={() => setPaymentFilters((current) => ({ ...current, employeeCodes: Array.from(new Set([...current.employeeCodes, ...employees.filter((employee) => employeeName(employee).toLowerCase().includes(employeeSearch.toLowerCase()) || employee.employeeCode.toLowerCase().includes(employeeSearch.toLowerCase())).map((employee) => employee.employeeCode)])) }))} className="font-medium text-primary-700">Sélectionner les résultats</button>
+                <button type="button" onClick={() => setPaymentFilters((current) => ({ ...current, employeeCodes: [] }))} className="text-slate-500 hover:text-slate-800">Tout effacer</button>
+              </div>
+              <div className="max-h-56 overflow-y-auto">
+                {employees.filter((employee) => employeeName(employee).toLowerCase().includes(employeeSearch.toLowerCase()) || employee.employeeCode.toLowerCase().includes(employeeSearch.toLowerCase())).map((employee) => {
+                  const checked = paymentFilters.employeeCodes.includes(employee.employeeCode)
+                  return <label key={employee.employeeCode} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-slate-50">
+                    <input type="checkbox" checked={checked} onChange={() => setPaymentFilters((current) => ({ ...current, employeeCodes: checked ? current.employeeCodes.filter((code) => code !== employee.employeeCode) : [...current.employeeCodes, employee.employeeCode] }))} />
+                    <span className="min-w-0"><span className="block truncate font-medium text-slate-700">{employeeName(employee)}</span><span className="text-xs text-slate-400">{employee.employeeCode}</span></span>
+                  </label>
+                })}
+                {employees.length === 0 && <p className="p-2 text-xs text-slate-500">Chargement des salariés…</p>}
+              </div>
+            </div>}
+          </div>
+          <input aria-label="Du" type="date" value={paymentFilters.from} onChange={(event) => setPaymentFilters({ ...paymentFilters, from: event.target.value })} className="rounded-lg border px-3 py-2 text-sm" />
+          <input aria-label="Au" type="date" value={paymentFilters.to} onChange={(event) => setPaymentFilters({ ...paymentFilters, to: event.target.value })} className="rounded-lg border px-3 py-2 text-sm" />
+          <input placeholder="Type libre" value={paymentFilters.type} onChange={(event) => setPaymentFilters({ ...paymentFilters, type: event.target.value })} className="rounded-lg border px-3 py-2 text-sm" />
+          <select value={paymentFilters.status} onChange={(event) => setPaymentFilters({ ...paymentFilters, status: event.target.value })} className="rounded-lg border px-3 py-2 text-sm"><option value="">Tous statuts</option><option value="PAYE">PAYE</option><option value="EN_ATTENTE">EN_ATTENTE</option><option value="ANNULE">ANNULE</option></select>
+          <select value={paymentFilters.siteId} onChange={(event) => setPaymentFilters({ ...paymentFilters, siteId: event.target.value })} className="rounded-lg border px-3 py-2 text-sm"><option value="">Tous chantiers</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button onClick={() => setPaymentFilters({ employeeCodes: [], from: "", to: "", type: "", status: "", siteId: "" })} className="text-xs text-primary-700">Réinitialiser les filtres</button>
+          {paymentFilters.employeeCodes.length > 0 && <span className="text-xs text-slate-500">L’historique des salariés sélectionnés est ouvert automatiquement.</span>}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead><tr className="text-left text-slate-500"><th>Date</th><th>Salarié</th><th>Type</th><th>Statut</th><th>Montant</th><th>Note</th><th>Actions</th></tr></thead>
+            <tbody className="divide-y">{filteredPayments.map((payment) => <tr key={payment.id}>
+              <td className="py-2">{fmtDay(payment.date)}</td><td>{payment.employeeName || payment.employeeCode}</td><td>{payment.type || "—"}</td><td>{payment.status || "—"}</td><td>{formatAriary(payment.amount)}</td><td>{payment.note}</td>
+              <td><div className="flex items-center gap-3"><button onClick={() => beginEdit(payment)} className="inline-flex items-center gap-1 text-primary-700"><Pencil className="h-3 w-3" />Éditer</button><button type="button" onClick={() => openArchiveModal(payment.employeeCode, payment)} className="inline-flex items-center gap-1 text-rose-600"><Trash2 className="h-3 w-3" />Supprimer</button></div></td>
+            </tr>)}</tbody>
+          </table>
+          {filteredPayments.length === 0 && <p className="py-3 text-sm text-slate-500">Aucun paiement correspondant aux filtres.</p>}
+        </div>
+      </Card>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <StatCard label="Total gagné" value={formatAriary(totals.earned)} />
-        <StatCard label="Total déjà payé" value={formatAriary(totals.paid)} accent="text-green-700" />
-        <StatCard label="Total restant à payer" value={formatAriary(totals.due)} accent="text-primary-700" />
+        <StatCard label="Total gagné" value={formatAriary(displayTotals.earned)} />
+        <StatCard label="Total déjà payé" value={formatAriary(displayTotals.paid)} accent="text-green-700" />
+        <StatCard label="Total restant à payer" value={formatAriary(displayTotals.due)} accent="text-primary-700" />
       </div>
 
       {showDeletedHistory && (
@@ -217,9 +292,9 @@ export default function AdminSalaries() {
       )}
 
       <Card>
-        {!loading && rows.length === 0 && <EmptyState message="Aucun salarié." />}
+        {!loading && displayRows.length === 0 && <EmptyState message={paymentFilters.employeeCodes.length ? "Aucun salarié ne correspond à la sélection." : "Aucun salarié."} />}
         <div className="divide-y">
-          {rows.map((row) => (
+          {displayRows.map((row) => (
             <div key={row.employee.employeeCode} className="py-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
@@ -247,7 +322,7 @@ export default function AdminSalaries() {
                     onClick={() => toggleHistory(row.employee.employeeCode)}
                     className="text-xs text-gray-500 font-medium"
                   >
-                    {openHistoryFor === row.employee.employeeCode ? "Masquer" : "Historique"}
+                    {openHistoryFor.includes(row.employee.employeeCode) ? "Masquer" : "Historique"}
                   </button>
                   <button
                     onClick={() => openPayModal(row.employee.employeeCode)}
@@ -307,15 +382,13 @@ export default function AdminSalaries() {
                 </form>
               )}
 
-              {openHistoryFor === row.employee.employeeCode && (
+              {openHistoryFor.includes(row.employee.employeeCode) && (
                 <div className="mt-3 bg-gray-50 rounded-lg p-3">
-                  {!payments[row.employee.employeeCode] ? (
-                    <div className="text-xs text-gray-500">Chargement...</div>
-                  ) : payments[row.employee.employeeCode].length === 0 ? (
-                    <div className="text-xs text-gray-500">Aucun paiement enregistré.</div>
+                  {filteredPayments.filter((payment) => payment.employeeCode === row.employee.employeeCode).length === 0 ? (
+                    <div className="text-xs text-gray-500">Aucun paiement correspondant à ces filtres.</div>
                   ) : (
                     <div className="divide-y divide-gray-200">
-                      {payments[row.employee.employeeCode].map((p) => (
+                      {filteredPayments.filter((payment) => payment.employeeCode === row.employee.employeeCode).map((p) => (
                         <div key={p.id} className="py-1.5 flex justify-between items-center gap-3 text-xs">
                           <span className="text-gray-500">{fmtDay(p.date)}{p.note ? ` · ${p.note}` : ""}</span>
                           <span className="flex items-center gap-3"><span className="font-medium text-gray-800">{formatAriary(p.amount)}</span><button type="button" onClick={() => openArchiveModal(row.employee.employeeCode,p)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-semibold text-rose-600 hover:bg-rose-50"><Trash2 className="h-3 w-3"/>Supprimer</button></span>
