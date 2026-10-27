@@ -1,7 +1,7 @@
 // src/pages/admin/Attendance.tsx
 import { useEffect, useMemo, useState } from "react"
 import { todayKey } from "../../utils/date"
-import { listAttendance, getAttendanceTotals, adminClockIn, adminClockOut, type Attendance, type AttendanceTotals, type AttendanceStatus } from "../../services/attendance"
+import { listAttendance, adminClockIn, adminClockOut, type Attendance, type AttendanceStatus } from "../../services/attendance"
 import { listEmployees, employeeName, type Employee } from "../../services/employees"
 import { listWorkplaces, type Workplace } from "../../services/workplaces"
 import { errorMessage } from "../../services/api"
@@ -19,21 +19,6 @@ function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
-/** Normalise les variantes de réponse API sans jamais laisser passer NaN/Infinity. */
-function getTotalMinutes(total: AttendanceTotals): number | null {
-  const candidates = [
-    total.workedMinutes,
-    total.totalMinutes,
-    total.workedHours == null ? undefined : Number(total.workedHours) * 60,
-  ]
-  for (const candidate of candidates) {
-    if (candidate == null) continue
-    const minutes = Number(candidate)
-    if (Number.isFinite(minutes) && minutes >= 0) return minutes
-  }
-  return null
-}
-
 export default function AdminAttendance() {
   const [date, setDate] = useState(todayKey())
   const [from, setFrom] = useState("")
@@ -41,7 +26,6 @@ export default function AdminAttendance() {
   const [filterEmployee, setFilterEmployee] = useState("")
   const [filterStatus, setFilterStatus] = useState("")
   const [filterSite, setFilterSite] = useState("")
-  const [totals, setTotals] = useState<AttendanceTotals[]>([])
   const [rows, setRows] = useState<Attendance[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [workplaces, setWorkplaces] = useState<Workplace[]>([])
@@ -60,13 +44,13 @@ export default function AdminAttendance() {
 
   const query = { date: from || to ? undefined : date, from: from || undefined, to: to || undefined, employeeCode: filterEmployee || undefined, status: (filterStatus || undefined) as AttendanceStatus | undefined, siteId: filterSite || undefined }
   async function refresh() {
-    try { setRows(await listAttendance(query)); setTotals(await getAttendanceTotals(query)) }
+    try { setRows(await listAttendance(query)) }
     catch (e) { setToast({ msg: errorMessage(e, "Impossible de charger les présences."), tone: "error" }) }
   }
   useEffect(() => {
     let cancelled = false
     listAttendance(query)
-      .then(async (a) => { if (!cancelled) { setRows(a); setTotals(await getAttendanceTotals(query)) } })
+      .then((a) => { if (!cancelled) setRows(a) })
       .catch((e) => { if (!cancelled) setToast({ msg: errorMessage(e, "Impossible de charger les présences."), tone: "error" }) })
     return () => { cancelled = true }
   }, [date, from, to, filterEmployee, filterStatus, filterSite])
@@ -144,13 +128,6 @@ export default function AdminAttendance() {
   }
 
   const hasOpen = rows.some((r) => r.status === "EN_COURS")
-  const validTotals = useMemo(
-    () => totals.flatMap((item) => {
-      const minutes = getTotalMinutes(item)
-      return minutes === null ? [] : [{ ...item, minutes }]
-    }),
-    [totals]
-  )
   const activeFilterCount = [filterEmployee, filterStatus, filterSite].filter(Boolean).length + Number(Boolean(from || to))
   const resetFilters = () => {
     setDate(todayKey())
@@ -163,30 +140,30 @@ export default function AdminAttendance() {
 
   return (
     <div className="space-y-6 pb-6">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 px-5 py-6 text-white shadow-xl shadow-indigo-950/10 sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute right-44 -bottom-32 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/60 to-sky-50 px-5 py-6 text-slate-900 shadow-xl shadow-indigo-100/50 sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-indigo-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute right-44 -bottom-32 h-56 w-56 rounded-full bg-sky-200/40 blur-3xl" />
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-indigo-100">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm">
               <Activity className="h-3.5 w-3.5" /> PILOTAGE EN TEMPS RÉEL
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Suivi des présences</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-300">Consultez les pointages, les durées travaillées et les activités par salarié ou chantier.</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Suivi des présences</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Consultez les pointages, les durées travaillées et les activités par salarié ou chantier.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-300">Du</span>
-              <span className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 focus-within:border-indigo-300">
-                <CalendarDays className="h-4 w-4 text-indigo-200" />
-                <input aria-label="Du" type="date" value={from} max={todayKey()} onChange={(e) => setFrom(e.target.value)} className="min-w-0 bg-transparent text-sm text-white outline-none [color-scheme:dark]" />
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Du</span>
+              <span className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+                <CalendarDays className="h-4 w-4 text-indigo-600" />
+                <input aria-label="Du" type="date" value={from} max={todayKey()} onChange={(e) => setFrom(e.target.value)} className="min-w-0 bg-transparent text-sm text-slate-700 outline-none [color-scheme:light]" />
               </span>
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-300">Au</span>
-              <span className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 focus-within:border-indigo-300">
-                <CalendarDays className="h-4 w-4 text-indigo-200" />
-                <input aria-label="Au" type="date" value={to} max={todayKey()} onChange={(e) => setTo(e.target.value)} className="min-w-0 bg-transparent text-sm text-white outline-none [color-scheme:dark]" />
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Au</span>
+              <span className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+                <CalendarDays className="h-4 w-4 text-indigo-600" />
+                <input aria-label="Au" type="date" value={to} max={todayKey()} onChange={(e) => setTo(e.target.value)} className="min-w-0 bg-transparent text-sm text-slate-700 outline-none [color-scheme:light]" />
               </span>
             </label>
             {isToday && (
@@ -196,9 +173,9 @@ export default function AdminAttendance() {
             )}
           </div>
         </div>
-        <div className="relative mt-6 flex flex-wrap gap-2 border-t border-white/10 pt-4 text-xs text-slate-300">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5"><UsersRound className="h-3.5 w-3.5 text-indigo-200" />{rows.length} pointage{rows.length > 1 ? "s" : ""} affiché{rows.length > 1 ? "s" : ""}</span>
-          {hasOpen && <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1.5 font-semibold text-amber-200"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" />{rows.filter((row) => row.status === "EN_COURS").length} en cours</span>}
+        <div className="relative mt-6 flex flex-wrap gap-2 border-t border-indigo-100 pt-4 text-xs text-slate-600">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100 bg-white px-3 py-1.5 shadow-sm"><UsersRound className="h-3.5 w-3.5 text-indigo-200" />{rows.length} pointage{rows.length > 1 ? "s" : ""} affiché{rows.length > 1 ? "s" : ""}</span>
+          {hasOpen && <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-800"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />{rows.filter((row) => row.status === "EN_COURS").length} en cours</span>}
         </div>
       </section>
 
@@ -217,29 +194,6 @@ export default function AdminAttendance() {
           <div className="flex items-end"><button onClick={resetFilters} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 xl:w-auto"><RotateCcw className="h-4 w-4" />Réinitialiser</button></div>
         </div>
       </Card>
-
-      {validTotals.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-end justify-between gap-2 px-1">
-            <div><h2 className="text-lg font-bold tracking-tight text-slate-900">Temps cumulé par salarié</h2><p className="mt-0.5 text-sm text-slate-500">Durée totale sur la période et les filtres sélectionnés.</p></div>
-            <span className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">{validTotals.length} salarié{validTotals.length > 1 ? "s" : ""}</span>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {validTotals.map((total, index) => {
-              const label = total.employeeName || nameFor({ employeeCode: total.employeeCode })
-              const initials = label.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase()).join("") || "?"
-              return <article key={total.employeeCode} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-950/5">
-                <div className={`absolute inset-x-0 top-0 h-1 ${index % 3 === 0 ? "bg-indigo-500" : index % 3 === 1 ? "bg-cyan-500" : "bg-violet-500"}`} />
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-extrabold text-indigo-700 ring-1 ring-indigo-100">{initials}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800" title={label}>{label}</p><p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">{total.employeeCode}</p></div></div>
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400 transition group-hover:bg-indigo-50 group-hover:text-indigo-600"><Clock3 className="h-4 w-4" /></span>
-                </div>
-                <div className="mt-4 flex items-baseline gap-2"><span className="font-mono text-2xl font-extrabold tracking-tight text-slate-900">{minutesToHoursLabel(total.minutes)}</span><span className="text-xs font-medium text-slate-500">{(total.minutes / 60).toFixed(2)} heures</span></div>
-              </article>
-            })}
-          </div>
-        </section>
-      )}
 
       <Card className="overflow-hidden rounded-2xl border border-slate-200/80 p-0 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
@@ -273,7 +227,7 @@ export default function AdminAttendance() {
       </Card>
 
       {showStart && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+        <div className="fixed inset-0 bg-white/75 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-5 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
@@ -313,7 +267,7 @@ export default function AdminAttendance() {
       )}
 
       {stopping && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+        <div className="fixed inset-0 bg-white/75 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
