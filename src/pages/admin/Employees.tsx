@@ -252,7 +252,6 @@ export default function AdminEmployees() {
               </select>
             </div>
             {editingId && <div className="md:col-span-2"><label className="block text-xs font-semibold text-slate-600 mb-1.5">Numéro salarié (lecture seule)</label><input value={employees.find(e => e.employeeCode === editingId)?.employeeNumber || editingId} readOnly className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm bg-slate-100" /></div>}
-            {!editingId && <div className="md:col-span-2 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">L’identifiant salarié permanent sera généré automatiquement par le serveur. Le code de connexion historique reste inchangé pour les comptes existants.</div>}
             {form.contractType === "CDI" ? <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Forfait mensuel contractuel (Ar)</label>
               <input type="number" min="1" value={form.monthlySalary} onChange={e=>setForm({...form,monthlySalary:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" required />
