@@ -118,6 +118,7 @@ export const adminClockIn = (employeeCode: string, workplaceId: string) =>
 export const adminClockOut = (attendanceId: string, exitTime?: string) =>
   post<{ workedMinutes: number; dailySalary: number }>(`/admin/attendance/${attendanceId}/clock-out`, exitTime ? { exitTime } : {})
 
+
 // // src/services/attendance.ts
 // //
 // // Pointage d'entrée / sortie. Le serveur fait foi : il vérifie que le salarié est autorisé sur le
