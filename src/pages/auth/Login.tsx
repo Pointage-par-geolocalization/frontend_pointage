@@ -1,4 +1,4 @@
-// src/pages/auth/Login.tsx
+// #src/pages/auth/Login.tsx
 import { useState, useEffect, type FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { Capacitor } from "@capacitor/core"
